@@ -1,18 +1,20 @@
 import { useRef, useCallback, useEffect } from 'react'
 import * as u from '@virtuoso.dev/urx'
 import { correctItemSize } from '../utils/correctItemSize'
+import { ScrollContainerState } from '../interfaces'
 
 export type ScrollerRef = Window | HTMLElement | null
 
 function approximatelyEqual(num1: number, num2: number) {
-  return Math.abs(num1 - num2) < 1
+  return Math.abs(num1 - num2) < 1.01
 }
 
 export default function useScrollTop(
-  scrollTopCallback: (scrollTop: number) => void,
+  scrollContainerStateCallback: (state: ScrollContainerState) => void,
   smoothScrollTargetReached: (yes: true) => void,
   scrollerElement: any,
-  scrollerRefCallback: (ref: ScrollerRef) => void = u.noop
+  scrollerRefCallback: (ref: ScrollerRef) => void = u.noop,
+  customScrollParent?: HTMLElement
 ) {
   const scrollerRef = useRef<HTMLElement | null | Window>(null)
   const scrollTopTarget = useRef<any>(null)
@@ -23,7 +25,14 @@ export default function useScrollTop(
       const el = ev.target as HTMLElement
       const scrollTop =
         (el as any) === window || (el as any) === document ? window.pageYOffset || document.documentElement.scrollTop : el.scrollTop
-      scrollTopCallback(Math.max(scrollTop, 0))
+      const scrollHeight = (el as any) === window ? document.documentElement.scrollHeight : el.scrollHeight
+      const viewportHeight = (el as any) === window ? window.innerHeight : el.offsetHeight
+
+      scrollContainerStateCallback({
+        scrollTop: Math.max(scrollTop, 0),
+        scrollHeight,
+        viewportHeight,
+      })
 
       if (scrollTopTarget.current !== null) {
         if (scrollTop === scrollTopTarget.current || scrollTop <= 0 || scrollTop === el.scrollHeight - correctItemSize(el, 'height')) {
@@ -36,25 +45,25 @@ export default function useScrollTop(
         }
       }
     },
-    [scrollTopCallback, smoothScrollTargetReached]
+    [scrollContainerStateCallback, smoothScrollTargetReached]
   )
 
   useEffect(() => {
-    const localRef = scrollerRef.current!
+    const localRef = customScrollParent ? customScrollParent : scrollerRef.current!
 
-    scrollerRefCallback(scrollerRef.current)
-    handler(({ target: localRef } as unknown) as Event)
+    scrollerRefCallback(customScrollParent ? customScrollParent : scrollerRef.current)
+    handler({ target: localRef } as unknown as Event)
     localRef.addEventListener('scroll', handler, { passive: true })
 
     return () => {
       scrollerRefCallback(null)
       localRef.removeEventListener('scroll', handler)
     }
-  }, [scrollerRef, handler, scrollerElement, scrollerRefCallback])
+  }, [scrollerRef, handler, scrollerElement, scrollerRefCallback, customScrollParent])
 
   function scrollToCallback(location: ScrollToOptions) {
     const scrollerElement = scrollerRef.current
-    if (!scrollerElement) {
+    if (!scrollerElement || ('offsetHeight' in scrollerElement && scrollerElement.offsetHeight === 0)) {
       return
     }
 
@@ -75,19 +84,19 @@ export default function useScrollTop(
       scrollTop = (scrollerElement as HTMLElement).scrollTop
     }
 
+    const maxScrollTop = scrollHeight - offsetHeight
+    location.top = Math.ceil(Math.max(Math.min(maxScrollTop, location.top!), 0))
+
     // avoid system hanging because the DOM never called back
     // with the scrollTop
     // scroller is already at this location
     if (approximatelyEqual(offsetHeight, scrollHeight) || location.top === scrollTop) {
-      scrollTopCallback(scrollTop)
+      scrollContainerStateCallback({ scrollTop, scrollHeight, viewportHeight: offsetHeight })
       if (isSmooth) {
         smoothScrollTargetReached(true)
       }
       return
     }
-
-    const maxScrollTop = scrollHeight - offsetHeight
-    location.top = Math.max(Math.min(maxScrollTop, location.top!), 0)
 
     if (isSmooth) {
       scrollTopTarget.current = location.top
@@ -108,9 +117,7 @@ export default function useScrollTop(
   }
 
   function scrollByCallback(location: ScrollToOptions) {
-    if (scrollTopTarget.current === null) {
-      scrollerRef.current!.scrollBy(location)
-    }
+    scrollerRef.current!.scrollBy(location)
   }
 
   return { scrollerRef, scrollByCallback, scrollToCallback }

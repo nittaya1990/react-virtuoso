@@ -86,9 +86,8 @@ describe('list engine', () => {
     it('starts from a specified location', (done) => {
       const INITIAL_INDEX = 300
       const SIZE = 30
-      const { propsReady, initialTopMostItemIndex, listState, scrollTop, scrollTo, viewportHeight, totalCount, sizeRanges } = init(
-        listSystem
-      )
+      const { propsReady, initialTopMostItemIndex, listState, scrollTop, scrollTo, viewportHeight, totalCount, sizeRanges } =
+        init(listSystem)
 
       publish(initialTopMostItemIndex, INITIAL_INDEX)
       publish(scrollTop, 0)
@@ -122,9 +121,8 @@ describe('list engine', () => {
     it('starts from a specified location with fixed item size', (done) => {
       const INITIAL_INDEX = 300
       const SIZE = 30
-      const { fixedItemHeight, propsReady, initialTopMostItemIndex, listState, scrollTop, scrollTo, viewportHeight, totalCount } = init(
-        listSystem
-      )
+      const { fixedItemHeight, propsReady, initialTopMostItemIndex, listState, scrollTop, scrollTo, viewportHeight, totalCount } =
+        init(listSystem)
 
       publish(initialTopMostItemIndex, INITIAL_INDEX)
       publish(scrollTop, 0)
@@ -241,7 +239,7 @@ describe('list engine', () => {
         propsReady,
         initialTopMostItemIndex,
         listState,
-        scrollTop,
+        scrollContainerState,
         scrollTo,
         viewportHeight,
         totalCount,
@@ -250,7 +248,7 @@ describe('list engine', () => {
       } = init(listSystem)
 
       publish(initialTopMostItemIndex, INITIAL_INDEX)
-      publish(scrollTop, 0)
+      publish(scrollContainerState, { scrollTop: 0, scrollHeight: 1000 * 30, viewportHeight: 200 })
       publish(viewportHeight, 200)
       publish(totalCount, 1000)
       publish(propsReady, true)
@@ -275,9 +273,17 @@ describe('list engine', () => {
         })
 
         setTimeout(() => {
-          publish(scrollTop, INITIAL_INDEX * SIZE)
+          publish(scrollContainerState, {
+            scrollTop: INITIAL_INDEX * SIZE,
+            scrollHeight: 1000 * 30,
+            viewportHeight: 200,
+          })
 
-          publish(scrollTop, INITIAL_INDEX * SIZE - 2)
+          publish(scrollContainerState, {
+            scrollTop: INITIAL_INDEX * SIZE - 2,
+            scrollHeight: 1000 * 30,
+            viewportHeight: 200,
+          })
 
           publish(sizeRanges, [
             {
